@@ -1,0 +1,86 @@
+# This document provides some examples for using shulker.
+# defining
+def sleep(time, rem=::):
+  schedule function $rem $time append
+
+# makes this
+say before
+sleep 1s
+say after
+
+# get translated to
+say before
+schedule function :: 1s append
+say after
+
+# which then turns into
+say before
+schedule function : 1s append
+  say after
+
+
+def as(...target, fn):
+  execute as $target run function $fn
+
+as @p:
+  say hello
+  say hi
+
+loop 1s:
+  say hello
+
+def loop(time, fn):
+  function $fn
+  sleep $time
+  loop $time $fn
+
+def if(...condition, fn):
+  execute if $condition run function $fn
+
+def while(time, ...condition, fn):
+  if $condition :
+    function $fn
+    sleep $time
+    while $time $condition $fn
+
+# lets npc uuid walk to the specified coordinates
+# after success, resumes the calling function
+def walk(uuid, x,y,z, :: rem):
+  # make a (global) variable denoting 
+  # we have not yet reached our destination
+  var walk_$uuid_$x_$y_$z_success 0
+
+  # have our npc walk to the destinaiton
+  as $uuid :
+    npc action goto $coords
+
+  # check_success checks every second whether the npc has
+  # reached their destination
+  # if yes, continues calling function
+  # and sets the success variable
+  #
+  # # maybe we need to clear the schedule twice in case
+  # we cleared it the same tick it was rescheduled
+  let check_success :
+    until 1s entity @e[id=$uuid, x=$x,...] nothing
+    var walk_$uuid_$x_$y_$z_success 1
+    function $rem
+  function $check_success
+
+  # if after 200s we still werent successful,
+  # tp to destination and
+  # delete function check_success
+  sleep 200s
+  unless score walk_$uuid_$x_$y_$z_success matches 1 ::
+  tp $uuid $x $y $z
+  scoreboard clear $check_success
+
+  # maybe we need to clear the schedule twice in case
+  # we cleared it the same tick it was rescheduled
+  sleep 1t
+  scoreboard clear $check_success
+
+
+
+
+

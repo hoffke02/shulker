@@ -1,0 +1,22 @@
+This document is just for notetaking stuff about the transpiler's architecture
+
+Input text
+
+SourceLine
+* text
+* number
+* file
+
+SourceWord
+* source_line
+* position
+* content
+
+SourceWordType
+  MinecraftWord<String>
+  / ::
+  / :
+  / def
+  / let
+  / ArgumentList
+  / ConstantInsertion

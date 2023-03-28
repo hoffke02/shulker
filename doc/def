@@ -1,0 +1,229 @@
+This document defines the shulker language.
+shulker is transpiled into minecraft .mcfunction files
+Use the following folder structure in your datapack:
+
+datapack
+├── data
+│   └── namespace
+│       └── functions
+│           ├── complain_bell.mcfunction
+│           ├── heads.mcfunction
+│           ├── test.mcfunction
+│           └── watch_bell.mcfunction
+├── src
+│   └── namespace
+│       ├── monastery.shk
+│       └── city.shk
+└── pack.mcmeta
+
+Each .shk file consists of the following:
+  * function definitions, starting in def
+  * constant definitions, starting in let
+
+A basic function could look like this
+~~~
+def example:
+  say Hello World
+~~~
+This creates a file example.mcfunctions in datapack/namespace/functions
+containing only say Hello World
+
+# Constants
+A constant is declared like so:
+~~~
+let my_constant Hello World
+~~~
+
+This can then be used like so
+~~~
+def example:
+  say $my_constant
+~~~
+This results in the same .mcfunction file like above, 
+with say Hello World hardcoded into it.
+This is because they are replaced at transpile time.
+This means you cannot change the value of a constant,
+only perhaps shadow it with a new constant of the same name.
+
+You can put a constant anywhere by prepending its name with a $,
+like in ~$my_constant~. This must not be followed by a letter, 
+underscore or number, hence you may want to use the equivalent
+~${my_constant}~ instead.
+
+Concatenating two string constants is easy, just do
+~~~
+let concatenated_constants $my_constant$my_other_constant
+~~~
+
+You can also do transpile time arithmetic with numeric constants.
+~~~
+let average $((a+b)/2)
+~~~
+where a and b are some constants. Note that you dont need further $s
+inside the $(...), although you can add them if you want,
+ie writing the equivalent
+~~~
+let average $(($a+$b)/2)
+~~~
+This supports +,-,*,/,%
+
+# Functions
+Function definitions are the very soul of shulker.
+We saw a simple function definition already.
+~~~
+def example:
+  say Hello World
+~~~
+
+The general syntax is
+~~~
+def <new-function> <old-function>
+~~~
+
+But wait, this is not what our example is like?!
+This is because : is special. 
+It looks at all indented lines below, puts them 
+into a new anonymous function (named anon_something)
+and replaces itself with its name.
+
+This can also be used in let statements.
+The following bits are equivalent:
+~~~
+say Hello
+say World
+say Hello
+say World
+~~~
+~~~
+let my_fn:
+  say Hello
+  say World
+
+function $my_fn
+function $my_fn
+~~~
+
+But functions really only are useful if you can pass arguments!
+~~~
+def example(text):
+  say $text
+example Hello
+~~~
+Arguments are put in round brackets into a comma separated list.
+An argument is just like a let-constant, 
+except it is only available within the body of the function
+definition.
+
+If in the above example we wanted to say Hello World,
+using ~example Hello World~ would not work, 
+because we give two arguments to a function only expecting one.
+We can group together arguments like so:
+~~~
+def example(...text):
+  say $text
+example Hello World
+example Hello
+~~~
+This just joins our several arguments into one.
+Stuff like this is also possible:
+~~~
+def example(x, ...y, z):
+  say First argument: $x
+  say Middle argument(s): $y
+  say Last argument: $z
+~~~
+
+One further cool thingy is ::. It somewhat works like :.
+Consider the following example
+~~~
+def example:
+  if @p[distance=..2] :
+    say This
+    say and that
+    say and more stuff
+~~~
+Dont worry about the if, it is just defined as
+~~~
+def if(...condition, function):
+  execute if $condition run $function
+~~~
+
+We only want to execute our example function if the condition
+@p[distance=..2] is met. Using :, we then have to indent
+the entire remainder of the function, which is really annoying.
+Luckily, instead we could do
+~~~
+def example:
+  if @p[distance=..2] ::
+  say this
+  say and that
+  say and more stuff
+~~~
+:: selects all consecutive below lines that are 
+indented to the same level or are indented further
+whereas : selects only those indented further.
+This really helps flattening our programs!
+
+There is another argument type associated with ::.
+~~~
+def sleep(time, ::rem):
+  schedule function $rem $time append
+
+def example
+  say Hello
+  sleep 1s
+  say World
+~~~
+works the same way as if we had written
+~~~
+def sleep(time, rem):
+  schedule function $rem $time append
+
+def example
+  say Hello
+  sleep 1s ::
+  say World
+~~~
+Notice how the only difference is that we moved the ::.
+This enables a function to control how and when the remainder of the 
+calling function will be executed.
+
+One last note. How does passing arguments acutally work,
+since .mcfunctions dont support arguments?
+The trick is that for any combination of arguments that
+the transpiler finds, a new function is made.
+So
+~~~
+def example(x):
+  say x
+def other:
+  example Hello
+  example World
+~~~
+actually creates two functions, example_Hello and example_World.
+
+This makes recursion a little tricky.
+This will work:
+~~~
+def example(x):
+  say Recurion!
+  example $x
+~~~
+because the transpiler is smart enough to see that example_x 
+and example_x are the same function.
+Although, the above will result in an infinite loop of printing
+Recursion! but that is beside the point.
+This next thing will not work however:
+~~~
+def example(...x):
+  say Recursion!
+  example $x $x
+~~~
+With each recursive call, a new function is made whose argument list
+is twice as long as the last. 
+Eventually, the transpiler will hit some maximum recursion depth
+and fail.
+
+In the future, vars will be added, which are (non constant) variables,
+and they will actually help.
+For now, use /data storage
